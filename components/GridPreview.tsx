@@ -91,48 +91,62 @@ const GridPreview: React.FC<GridPreviewProps> = ({
     return () => window.removeEventListener('mouseup', handleMouseUp);
   }, [isDragging]);
 
+  // 1x1 Transparent SVG for Square Mode Layout Driver
+  const SQUARE_SVG_DATA = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxIiBoZWlnaHQ9IjEiIHZpZXdCb3g9IjAgMCAxIDEiPjwvc3ZnPg==";
+
   return (
     <div className="flex flex-col h-full w-full select-none">
       
       {/* Container Area */}
-      {/* Centering wrapper */}
+      {/* Centering wrapper with padding */}
       <div className="flex-1 flex items-center justify-center min-h-0 w-full relative overflow-hidden bg-apple-gray/30 rounded-lg p-0 md:p-1">
         
-        {/* The Viewport Wrapper - This defines the crop box */}
+        {/* The Viewport Wrapper */}
         <div 
             ref={containerRef}
-            className="relative shadow-sm overflow-hidden bg-white"
+            className="relative shadow-sm overflow-hidden bg-white flex items-center justify-center"
             style={{
-                // Lock aspect ratio to the logic viewport
-                aspectRatio: `${viewportDims.width} / ${viewportDims.height}`,
-                // Fit within parent container
+                // We rely on the Phantom Image to drive dimensions now
+                // This is more robust than aspect-ratio in flex containers
                 maxWidth: '100%',
                 maxHeight: '100%',
-                // Ensure dimensions exist
-                width: 'auto',
-                height: 'auto',
                 cursor: isDragging ? 'grabbing' : 'grab'
             }}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
         >
-            {/* Image Layer - Transformed inside the viewport */}
+            {/* PHANTOM DRIVER IMAGE (Invisible) */}
+            {/* This ensures the container expands to the correct aspect ratio and fits within parent */}
+            <img
+                src={settings.cropMode === 'square' ? SQUARE_SVG_DATA : imageInfo.src}
+                alt="layout-driver"
+                className="opacity-0 pointer-events-none block"
+                style={{
+                    maxWidth: '100%',
+                    maxHeight: '100%',
+                    width: 'auto',
+                    height: 'auto',
+                    objectFit: 'contain'
+                }}
+            />
+
+            {/* REAL IMAGE LAYER */}
+            {/* Absolutely positioned over the driver */}
             <img 
                 src={imageInfo.src}
                 alt="preview"
                 draggable={false}
-                className="w-full h-full block absolute inset-0 pointer-events-none"
+                className="absolute inset-0 w-full h-full pointer-events-none select-none"
                 style={{
-                    // Square mode covers, Original mode fills
+                    // Square mode covers the square viewport, Original mode fills the original viewport
                     objectFit: settings.cropMode === 'square' ? 'cover' : 'fill', 
-                    // Apply user transforms
                     transform: `translate(${settings.offsetX}px, ${settings.offsetY}px) scale(${settings.scale})`,
                     transformOrigin: 'center',
                     transition: isDragging ? 'none' : 'transform 0.1s ease-out',
                 }}
             />
             
-            {/* Interactive Grid Overlay */}
+            {/* GRID OVERLAY */}
             <div 
                 className="absolute inset-0 grid z-20"
                 style={{
