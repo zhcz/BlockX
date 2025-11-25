@@ -1,6 +1,5 @@
 
 import React, { useState, useCallback } from 'react';
-import { Analytics } from '@vercel/analytics/react';
 import ImageUploader from './components/ImageUploader';
 import GridPreview from './components/GridPreview';
 import Sidebar from './components/Sidebar';
@@ -63,7 +62,6 @@ const App: React.FC = () => {
   };
 
   return (
-    <>
     <div className="min-h-screen w-full bg-apple-gray p-2 md:p-4 flex items-center justify-center font-sans">
       <div className="w-full max-w-7xl flex flex-col md:flex-row gap-3 md:h-[90vh]">
         
@@ -156,8 +154,6 @@ const App: React.FC = () => {
         </div>
       </div>
     </div>
-    <Analytics />
-    </>
   );
 };
 
