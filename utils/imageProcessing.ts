@@ -37,7 +37,7 @@ export const processAndDownload = async (
   onProgress: (percent: number) => void
 ) => {
   const { src, originalName } = imageInfo;
-  const { rows, cols, format, cropMode, scale, offsetX, offsetY } = settings;
+  const { rows, cols, format, cropMode, scaleX, scaleY, offsetX, offsetY } = settings;
 
   try {
     const img = await loadImage(src);
@@ -58,27 +58,18 @@ export const processAndDownload = async (
     // Clear background
     ctx.clearRect(0, 0, viewport.width, viewport.height);
     
-    // Calculate draw dimensions based on scale
-    const drawWidth = img.width * scale;
-    const drawHeight = img.height * scale;
+    // Calculate draw dimensions based on independent scales
+    const drawWidth = img.width * scaleX;
+    const drawHeight = img.height * scaleY;
 
     // Calculate centering offsets base
-    let baseX = 0;
-    let baseY = 0;
+    // In both modes, we initially center the image in the viewport
+    const baseX = (viewport.width - drawWidth) / 2;
+    const baseY = (viewport.height - drawHeight) / 2;
 
-    if (cropMode === 'square') {
-      // Center image in square viewport
-      baseX = (viewport.width - drawWidth) / 2;
-      baseY = (viewport.height - drawHeight) / 2;
-    } else {
-      // Center image in original viewport (viewport matches img ratio, but scale changes size)
-      baseX = (viewport.width - drawWidth) / 2;
-      baseY = (viewport.height - drawHeight) / 2;
-    }
-
-    // Apply user pan offsets
-    const finalX = baseX + offsetX;
-    const finalY = baseY + offsetY;
+    // Apply user pan offsets (converted from percentage to pixels)
+    const finalX = baseX + (offsetX * viewport.width);
+    const finalY = baseY + (offsetY * viewport.height);
 
     // Draw the processed image to the master canvas
     ctx.drawImage(img, finalX, finalY, drawWidth, drawHeight);

@@ -2,7 +2,7 @@ import React from 'react';
 import { GridSettings, ImageInfo, ProcessingState } from '../types';
 import { Card } from './ui/Card';
 import Button from './ui/Button';
-import { Download, Grid, Crop, AlertCircle, ImageOff, ZoomIn, Move, Minus, Plus } from 'lucide-react';
+import { Download, Grid, Move, Minus, Plus, ArrowLeftRight, ArrowUpDown } from 'lucide-react';
 import { processAndDownload } from '../utils/imageProcessing';
 
 interface SidebarProps {
@@ -50,48 +50,25 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const handleInputChange = (field: keyof GridSettings, value: number | string) => {
-    // Reset transforms when crop mode changes to avoid confusion
+    // Reset transforms when crop mode changes
     if (field === 'cropMode') {
-        setSettings(prev => ({ ...prev, [field]: value as any, scale: 1, offsetX: 0, offsetY: 0 }));
+        setSettings(prev => ({ ...prev, [field]: value as any, scaleX: 1, scaleY: 1, offsetX: 0, offsetY: 0 }));
     } else {
         setSettings(prev => ({ ...prev, [field]: value as any }));
     }
   };
 
-  const handleZoomStep = (amount: number) => {
-    // Clamp between 0.5 and 3, fix float precision
-    const newScale = Math.min(3, Math.max(0.5, settings.scale + amount));
-    handleInputChange('scale', Number(newScale.toFixed(2)));
+  const handleScaleStep = (axis: 'X' | 'Y', amount: number) => {
+    const field = axis === 'X' ? 'scaleX' : 'scaleY';
+    const current = settings[field];
+    const newVal = Math.min(3, Math.max(0.5, current + amount));
+    handleInputChange(field, Number(newVal.toFixed(2)));
   };
 
   return (
     <div className={`flex flex-col gap-3 h-full md:overflow-y-auto pr-0 md:pr-1 pb-10 transition-opacity duration-300 ${isDisabled ? 'opacity-75' : 'opacity-100'}`}>
       
-      {/* 1. Image Info Module */}
-      <Card className="py-4 px-5">
-        <div className="flex justify-between items-start">
-          <div className="flex-1 overflow-hidden">
-            <h4 className="font-semibold text-xs text-apple-subtext uppercase tracking-wider mb-1">图片来源</h4>
-            {imageInfo ? (
-              <>
-                <p className="font-medium truncate text-sm text-apple-text" title={imageInfo.originalName}>
-                  {imageInfo.originalName}
-                </p>
-                <p className="text-[10px] text-apple-subtext mt-0.5">
-                  {imageInfo.width} × {imageInfo.height} px
-                </p>
-              </>
-            ) : (
-              <div className="flex items-center gap-2 text-apple-subtext py-1">
-                <ImageOff size={16} />
-                <span className="text-sm">等待上传...</span>
-              </div>
-            )}
-          </div>
-        </div>
-      </Card>
-
-      {/* 2. Slicing Parameters */}
+      {/* 1. Slicing Parameters */}
       <Card className="py-4 px-5">
          <div className="flex items-center justify-between mb-3">
             <h4 className="font-semibold text-xs text-apple-subtext uppercase tracking-wider flex items-center gap-2">
@@ -124,59 +101,46 @@ const Sidebar: React.FC<SidebarProps> = ({
          </div>
       </Card>
 
-      {/* 3. Scale & Crop Settings */}
+      {/* 2. Scale & Crop Settings */}
       <Card className="py-4 px-5">
          <h4 className="font-semibold text-xs text-apple-subtext uppercase tracking-wider mb-3 flex items-center gap-2">
              <Move size={14} /> 调整与裁剪
          </h4>
 
-         <div className="space-y-4">
+         <div className="space-y-5">
              {/* Mode Select */}
-             <div className="flex flex-col gap-1.5">
-                <div className="flex bg-apple-gray p-1 rounded-xl">
-                    <button disabled={isDisabled} onClick={() => handleInputChange('cropMode', 'original')} className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-all ${settings.cropMode === 'original' ? 'bg-white shadow-sm text-apple-text' : 'text-apple-subtext hover:text-apple-text'}`}>原比例</button>
-                    <button disabled={isDisabled} onClick={() => handleInputChange('cropMode', 'square')} className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-all ${settings.cropMode === 'square' ? 'bg-white shadow-sm text-apple-text' : 'text-apple-subtext hover:text-apple-text'}`}>正方形</button>
-                </div>
-            </div>
+             <div className="flex bg-apple-gray p-1 rounded-xl">
+                 <button disabled={isDisabled} onClick={() => handleInputChange('cropMode', 'original')} className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-all ${settings.cropMode === 'original' ? 'bg-white shadow-sm text-apple-text' : 'text-apple-subtext hover:text-apple-text'}`}>原比例</button>
+                 <button disabled={isDisabled} onClick={() => handleInputChange('cropMode', 'square')} className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-all ${settings.cropMode === 'square' ? 'bg-white shadow-sm text-apple-text' : 'text-apple-subtext hover:text-apple-text'}`}>正方形</button>
+             </div>
 
-            {/* Zoom Slider */}
-             <div className="flex flex-col gap-2">
-                 <div className="flex justify-between items-center text-[10px] text-apple-subtext font-medium">
-                     <span className="flex items-center gap-1"><ZoomIn size={12}/> 缩放</span>
-                     <span>{Math.round(settings.scale * 100)}%</span>
-                 </div>
-                 
-                 <div className="flex items-center gap-2">
-                     <button 
-                         onClick={() => handleZoomStep(-0.01)}
-                         disabled={isDisabled}
-                         className="w-6 h-6 flex items-center justify-center rounded-full bg-apple-gray hover:bg-gray-200 text-apple-text transition-colors disabled:opacity-50"
-                         title="缩小 (-1%)"
-                     >
-                         <Minus size={12} />
-                     </button>
-                     
-                     <input 
-                        type="range" min="0.5" max="3" step="0.01"
-                        disabled={isDisabled}
-                        value={settings.scale}
-                        onChange={(e) => handleInputChange('scale', parseFloat(e.target.value))}
-                        className="flex-1 h-1.5 bg-apple-gray rounded-lg appearance-none cursor-pointer accent-apple-text disabled:opacity-50"
-                     />
-
-                     <button 
-                         onClick={() => handleZoomStep(0.01)}
-                         disabled={isDisabled}
-                         className="w-6 h-6 flex items-center justify-center rounded-full bg-apple-gray hover:bg-gray-200 text-apple-text transition-colors disabled:opacity-50"
-                         title="放大 (+1%)"
-                     >
-                         <Plus size={12} />
-                     </button>
+             {/* Independent Scale Controls */}
+             <div className="space-y-3">
+                 {/* Scale X */}
+                 <div className="flex flex-col gap-1.5">
+                     <div className="flex justify-between items-center text-[10px] text-apple-subtext font-medium">
+                         <span className="flex items-center gap-1"><ArrowLeftRight size={12}/> 横向缩放</span>
+                         <span>{Math.round(settings.scaleX * 100)}%</span>
+                     </div>
+                     <div className="flex items-center gap-2">
+                         <button onClick={() => handleScaleStep('X', -0.01)} disabled={isDisabled} className="w-5 h-5 flex items-center justify-center rounded-full bg-apple-gray hover:bg-gray-200 text-apple-text transition-colors disabled:opacity-50"><Minus size={10} /></button>
+                         <input type="range" min="0.5" max="3" step="0.01" disabled={isDisabled} value={settings.scaleX} onChange={(e) => handleInputChange('scaleX', parseFloat(e.target.value))} className="flex-1 h-1.5 bg-apple-gray rounded-lg appearance-none cursor-pointer accent-apple-text disabled:opacity-50"/>
+                         <button onClick={() => handleScaleStep('X', 0.01)} disabled={isDisabled} className="w-5 h-5 flex items-center justify-center rounded-full bg-apple-gray hover:bg-gray-200 text-apple-text transition-colors disabled:opacity-50"><Plus size={10} /></button>
+                     </div>
                  </div>
 
-                 <p className="text-[9px] text-apple-subtext text-center mt-1">
-                     提示：在左侧预览图中可直接拖拽移动图片
-                 </p>
+                 {/* Scale Y */}
+                 <div className="flex flex-col gap-1.5">
+                     <div className="flex justify-between items-center text-[10px] text-apple-subtext font-medium">
+                         <span className="flex items-center gap-1"><ArrowUpDown size={12}/> 纵向缩放</span>
+                         <span>{Math.round(settings.scaleY * 100)}%</span>
+                     </div>
+                     <div className="flex items-center gap-2">
+                         <button onClick={() => handleScaleStep('Y', -0.01)} disabled={isDisabled} className="w-5 h-5 flex items-center justify-center rounded-full bg-apple-gray hover:bg-gray-200 text-apple-text transition-colors disabled:opacity-50"><Minus size={10} /></button>
+                         <input type="range" min="0.5" max="3" step="0.01" disabled={isDisabled} value={settings.scaleY} onChange={(e) => handleInputChange('scaleY', parseFloat(e.target.value))} className="flex-1 h-1.5 bg-apple-gray rounded-lg appearance-none cursor-pointer accent-apple-text disabled:opacity-50"/>
+                         <button onClick={() => handleScaleStep('Y', 0.01)} disabled={isDisabled} className="w-5 h-5 flex items-center justify-center rounded-full bg-apple-gray hover:bg-gray-200 text-apple-text transition-colors disabled:opacity-50"><Plus size={10} /></button>
+                     </div>
+                 </div>
              </div>
              
              {/* Format */}
@@ -191,14 +155,8 @@ const Sidebar: React.FC<SidebarProps> = ({
          </div>
       </Card>
 
-      {/* 4. Download Action */}
+      {/* 3. Download Action */}
       <div className="mt-auto pt-2">
-        {processingState.error && (
-            <div className="mb-3 p-2 bg-red-50 text-red-600 rounded-xl text-xs flex items-center gap-2">
-                <AlertCircle size={14} />
-                {processingState.error}
-            </div>
-        )}
         <Button 
             onClick={handleDownload} variant="primary" 
             className="w-full h-12 text-sm shadow-lg shadow-apple-blue/20"

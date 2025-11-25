@@ -26,7 +26,7 @@ const App: React.FC = () => {
       rows: prev.rows, 
       cols: prev.cols,
       // Reset transform on new image
-      scale: 1, offsetX: 0, offsetY: 0 
+      scaleX: 1, scaleY: 1, offsetX: 0, offsetY: 0 
     }));
     setSelectedIndices(new Set());
     setGlobalError(null);

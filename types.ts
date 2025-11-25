@@ -16,8 +16,11 @@ export interface GridSettings {
   format: ExportFormat;
   cropMode: CropMode;
   squareFit: SquareFit;
-  // New transformation properties
-  scale: number;
+  // Transformed properties
+  // scaleX/Y: Multiplier (1 = 100%)
+  scaleX: number;
+  scaleY: number;
+  // offsetX/Y: Percentage of viewport width/height (-0.5 to 0.5 usually)
   offsetX: number;
   offsetY: number;
 }

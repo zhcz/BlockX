@@ -30,7 +30,7 @@ const GridPreview: React.FC<GridPreviewProps> = ({
     return getViewportDimensions(imageInfo.width, imageInfo.height, settings.cropMode);
   }, [imageInfo, settings.cropMode]);
 
-  // UI Grid dimensions
+  // UI Grid dimensions (Logical)
   const blockWidth = Math.round(viewportDims.width / settings.cols);
   const blockHeight = Math.round(viewportDims.height / settings.rows);
 
@@ -52,15 +52,19 @@ const GridPreview: React.FC<GridPreviewProps> = ({
       setHasMoved(true);
     }
 
-    // Convert screen pixel movement to image transformation
+    // CRITICAL FIX: Convert screen pixel movement to Percentage Movement
+    // This ensures drag works consistently regardless of zoom/screen size
     if (containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect();
-        // Calculate scale ratio (Viewport Logical Width / Screen Rendered Width)
-        const ratio = viewportDims.width / rect.width;
+        
+        // dx is screen pixels. 
+        // We want to know what % of the current view width that is.
+        const percentX = dx / rect.width;
+        const percentY = dy / rect.height;
         
         onSettingsChange({
-            offsetX: initialOffset.x + dx * ratio,
-            offsetY: initialOffset.y + dy * ratio
+            offsetX: initialOffset.x + percentX,
+            offsetY: initialOffset.y + percentY
         });
     }
   };
@@ -92,14 +96,12 @@ const GridPreview: React.FC<GridPreviewProps> = ({
   }, [isDragging]);
 
   // 1000x1000 Transparent SVG for Square Mode Layout Driver
-  // Using a larger dimension ensures the container doesn't collapse to 1px
   const SQUARE_SVG_DATA = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAwIiBoZWlnaHQ9IjEwMDAiIHZpZXdCb3g9IjAgMCAxIDEiPjwvc3ZnPg==";
 
   return (
     <div className="flex flex-col h-full w-full select-none">
       
       {/* Container Area */}
-      {/* Centering wrapper with padding */}
       <div className="flex-1 flex items-center justify-center min-h-0 w-full relative overflow-hidden bg-apple-gray/30 rounded-lg p-0 md:p-1">
         
         {/* The Viewport Wrapper */}
@@ -107,8 +109,6 @@ const GridPreview: React.FC<GridPreviewProps> = ({
             ref={containerRef}
             className="relative shadow-sm overflow-hidden bg-white flex items-center justify-center"
             style={{
-                // We rely on the Phantom Image to drive dimensions now
-                // This is more robust than aspect-ratio in flex containers
                 maxWidth: '100%',
                 maxHeight: '100%',
                 cursor: isDragging ? 'grabbing' : 'grab'
@@ -116,8 +116,7 @@ const GridPreview: React.FC<GridPreviewProps> = ({
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
         >
-            {/* PHANTOM DRIVER IMAGE (Invisible) */}
-            {/* This ensures the container expands to the correct aspect ratio and fits within parent */}
+            {/* PHANTOM DRIVER IMAGE */}
             <img
                 src={settings.cropMode === 'square' ? SQUARE_SVG_DATA : imageInfo.src}
                 alt="layout-driver"
@@ -132,16 +131,16 @@ const GridPreview: React.FC<GridPreviewProps> = ({
             />
 
             {/* REAL IMAGE LAYER */}
-            {/* Absolutely positioned over the driver */}
+            {/* Using percentages for translate ensures stability on resize */}
             <img 
                 src={imageInfo.src}
                 alt="preview"
                 draggable={false}
                 className="absolute inset-0 w-full h-full pointer-events-none select-none"
                 style={{
-                    // FIX: use 'contain' instead of 'fill' for original mode to prevent vertical stretching/compression
                     objectFit: settings.cropMode === 'square' ? 'cover' : 'contain', 
-                    transform: `translate(${settings.offsetX}px, ${settings.offsetY}px) scale(${settings.scale})`,
+                    // Use scale(X, Y) for independent stretching
+                    transform: `translate(${settings.offsetX * 100}%, ${settings.offsetY * 100}%) scale(${settings.scaleX}, ${settings.scaleY})`,
                     transformOrigin: 'center',
                     transition: isDragging ? 'none' : 'transform 0.1s ease-out',
                 }}
@@ -185,7 +184,7 @@ const GridPreview: React.FC<GridPreviewProps> = ({
         <div className="flex items-center gap-3">
             <span>原图: {imageInfo.width}×{imageInfo.height}</span>
             <span className="text-apple-text/80">
-                {hasMoved || settings.scale !== 1 ? '(已调整)' : ''}
+                {hasMoved || settings.scaleX !== 1 || settings.scaleY !== 1 ? '(已调整)' : ''}
             </span>
         </div>
         <div className="font-medium text-apple-text">
