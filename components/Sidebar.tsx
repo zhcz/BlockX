@@ -1,8 +1,9 @@
+
 import React from 'react';
 import { GridSettings, ImageInfo, ProcessingState } from '../types';
 import { Card } from './ui/Card';
 import Button from './ui/Button';
-import { Download, Grid, Move, Minus, Plus, ArrowLeftRight, ArrowUpDown } from 'lucide-react';
+import { Download, Grid, Move, Minus, Plus, ArrowLeftRight, ArrowUpDown, RefreshCw } from 'lucide-react';
 import { processAndDownload } from '../utils/imageProcessing';
 
 interface SidebarProps {
@@ -50,7 +51,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const handleInputChange = (field: keyof GridSettings, value: number | string) => {
-    // Reset transforms when crop mode changes
+    // Reset transforms when crop mode changes to avoid confusion
     if (field === 'cropMode') {
         setSettings(prev => ({ ...prev, [field]: value as any, scaleX: 1, scaleY: 1, offsetX: 0, offsetY: 0 }));
     } else {
@@ -63,6 +64,10 @@ const Sidebar: React.FC<SidebarProps> = ({
     const current = settings[field];
     const newVal = Math.min(3, Math.max(0.5, current + amount));
     handleInputChange(field, Number(newVal.toFixed(2)));
+  };
+
+  const resetTransforms = () => {
+      setSettings(prev => ({ ...prev, scaleX: 1, scaleY: 1, offsetX: 0, offsetY: 0 }));
   };
 
   return (
@@ -103,9 +108,18 @@ const Sidebar: React.FC<SidebarProps> = ({
 
       {/* 2. Scale & Crop Settings */}
       <Card className="py-4 px-5">
-         <h4 className="font-semibold text-xs text-apple-subtext uppercase tracking-wider mb-3 flex items-center gap-2">
-             <Move size={14} /> 调整与裁剪
-         </h4>
+         <div className="flex items-center justify-between mb-3">
+             <h4 className="font-semibold text-xs text-apple-subtext uppercase tracking-wider flex items-center gap-2">
+                 <Move size={14} /> 调整与裁剪
+             </h4>
+             <button 
+                onClick={resetTransforms}
+                disabled={isDisabled}
+                className="text-[10px] text-apple-blue hover:underline disabled:opacity-50 flex items-center gap-1"
+             >
+                 <RefreshCw size={10} /> 重置调整
+             </button>
+         </div>
 
          <div className="space-y-5">
              {/* Mode Select */}
@@ -115,7 +129,7 @@ const Sidebar: React.FC<SidebarProps> = ({
              </div>
 
              {/* Independent Scale Controls */}
-             <div className="space-y-3">
+             <div className="space-y-4">
                  {/* Scale X */}
                  <div className="flex flex-col gap-1.5">
                      <div className="flex justify-between items-center text-[10px] text-apple-subtext font-medium">
@@ -123,9 +137,9 @@ const Sidebar: React.FC<SidebarProps> = ({
                          <span>{Math.round(settings.scaleX * 100)}%</span>
                      </div>
                      <div className="flex items-center gap-2">
-                         <button onClick={() => handleScaleStep('X', -0.01)} disabled={isDisabled} className="w-5 h-5 flex items-center justify-center rounded-full bg-apple-gray hover:bg-gray-200 text-apple-text transition-colors disabled:opacity-50"><Minus size={10} /></button>
+                         <button onClick={() => handleScaleStep('X', -0.01)} disabled={isDisabled} className="w-6 h-6 flex items-center justify-center rounded-full bg-apple-gray hover:bg-gray-200 text-apple-text transition-colors disabled:opacity-50"><Minus size={12} /></button>
                          <input type="range" min="0.5" max="3" step="0.01" disabled={isDisabled} value={settings.scaleX} onChange={(e) => handleInputChange('scaleX', parseFloat(e.target.value))} className="flex-1 h-1.5 bg-apple-gray rounded-lg appearance-none cursor-pointer accent-apple-text disabled:opacity-50"/>
-                         <button onClick={() => handleScaleStep('X', 0.01)} disabled={isDisabled} className="w-5 h-5 flex items-center justify-center rounded-full bg-apple-gray hover:bg-gray-200 text-apple-text transition-colors disabled:opacity-50"><Plus size={10} /></button>
+                         <button onClick={() => handleScaleStep('X', 0.01)} disabled={isDisabled} className="w-6 h-6 flex items-center justify-center rounded-full bg-apple-gray hover:bg-gray-200 text-apple-text transition-colors disabled:opacity-50"><Plus size={12} /></button>
                      </div>
                  </div>
 
@@ -136,11 +150,15 @@ const Sidebar: React.FC<SidebarProps> = ({
                          <span>{Math.round(settings.scaleY * 100)}%</span>
                      </div>
                      <div className="flex items-center gap-2">
-                         <button onClick={() => handleScaleStep('Y', -0.01)} disabled={isDisabled} className="w-5 h-5 flex items-center justify-center rounded-full bg-apple-gray hover:bg-gray-200 text-apple-text transition-colors disabled:opacity-50"><Minus size={10} /></button>
+                         <button onClick={() => handleScaleStep('Y', -0.01)} disabled={isDisabled} className="w-6 h-6 flex items-center justify-center rounded-full bg-apple-gray hover:bg-gray-200 text-apple-text transition-colors disabled:opacity-50"><Minus size={12} /></button>
                          <input type="range" min="0.5" max="3" step="0.01" disabled={isDisabled} value={settings.scaleY} onChange={(e) => handleInputChange('scaleY', parseFloat(e.target.value))} className="flex-1 h-1.5 bg-apple-gray rounded-lg appearance-none cursor-pointer accent-apple-text disabled:opacity-50"/>
-                         <button onClick={() => handleScaleStep('Y', 0.01)} disabled={isDisabled} className="w-5 h-5 flex items-center justify-center rounded-full bg-apple-gray hover:bg-gray-200 text-apple-text transition-colors disabled:opacity-50"><Plus size={10} /></button>
+                         <button onClick={() => handleScaleStep('Y', 0.01)} disabled={isDisabled} className="w-6 h-6 flex items-center justify-center rounded-full bg-apple-gray hover:bg-gray-200 text-apple-text transition-colors disabled:opacity-50"><Plus size={12} /></button>
                      </div>
                  </div>
+                 
+                 <p className="text-[9px] text-apple-subtext text-center mt-0.5">
+                     提示：也可在预览区使用滚轮缩放，拖拽移动
+                 </p>
              </div>
              
              {/* Format */}

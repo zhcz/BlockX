@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { GridSettings, ImageInfo } from '../types';
 import { getViewportDimensions } from '../utils/imageProcessing';
@@ -34,6 +35,41 @@ const GridPreview: React.FC<GridPreviewProps> = ({
   const blockWidth = Math.round(viewportDims.width / settings.cols);
   const blockHeight = Math.round(viewportDims.height / settings.rows);
 
+  // Mouse Wheel Zoom Logic
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !onSettingsChange) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      
+      const zoomIn = e.deltaY < 0;
+      const step = 0.05;
+      const delta = zoomIn ? step : -step;
+
+      // Update both Scale X and Y uniformly on wheel
+      let newScaleX = settings.scaleX + delta;
+      let newScaleY = settings.scaleY + delta;
+
+      newScaleX = Math.min(3, Math.max(0.5, newScaleX));
+      newScaleY = Math.min(3, Math.max(0.5, newScaleY));
+
+      newScaleX = Number(newScaleX.toFixed(2));
+      newScaleY = Number(newScaleY.toFixed(2));
+
+      onSettingsChange({
+        scaleX: newScaleX,
+        scaleY: newScaleY
+      });
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
+    };
+  }, [settings.scaleX, settings.scaleY, onSettingsChange]);
+
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return; // Only left click
     setIsDragging(true);
@@ -52,13 +88,11 @@ const GridPreview: React.FC<GridPreviewProps> = ({
       setHasMoved(true);
     }
 
-    // CRITICAL FIX: Convert screen pixel movement to Percentage Movement
-    // This ensures drag works consistently regardless of zoom/screen size
+    // Convert screen pixel movement to Percentage Movement
+    // This is crucial for fixing the "cut bug" on window resize
     if (containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect();
         
-        // dx is screen pixels. 
-        // We want to know what % of the current view width that is.
         const percentX = dx / rect.width;
         const percentY = dy / rect.height;
         
@@ -131,7 +165,6 @@ const GridPreview: React.FC<GridPreviewProps> = ({
             />
 
             {/* REAL IMAGE LAYER */}
-            {/* Using percentages for translate ensures stability on resize */}
             <img 
                 src={imageInfo.src}
                 alt="preview"
@@ -139,7 +172,7 @@ const GridPreview: React.FC<GridPreviewProps> = ({
                 className="absolute inset-0 w-full h-full pointer-events-none select-none"
                 style={{
                     objectFit: settings.cropMode === 'square' ? 'cover' : 'contain', 
-                    // Use scale(X, Y) for independent stretching
+                    // Use independent scaleX and scaleY, and percentage-based translate
                     transform: `translate(${settings.offsetX * 100}%, ${settings.offsetY * 100}%) scale(${settings.scaleX}, ${settings.scaleY})`,
                     transformOrigin: 'center',
                     transition: isDragging ? 'none' : 'transform 0.1s ease-out',
@@ -148,7 +181,7 @@ const GridPreview: React.FC<GridPreviewProps> = ({
             
             {/* GRID OVERLAY */}
             <div 
-                className="absolute inset-0 grid z-20"
+                className="absolute inset-0 grid z-20 pointer-events-none"
                 style={{
                     gridTemplateColumns: `repeat(${settings.cols}, 1fr)`,
                     gridTemplateRows: `repeat(${settings.rows}, 1fr)`,
@@ -159,6 +192,7 @@ const GridPreview: React.FC<GridPreviewProps> = ({
                     return (
                         <div
                             key={i}
+                            style={{ pointerEvents: 'auto' }}
                             onMouseUp={() => handleGridClick(i)}
                             className={`
                                 relative border border-dashed border-red-500/60 
