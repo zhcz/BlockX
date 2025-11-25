@@ -143,6 +143,11 @@ const GridPreview: React.FC<GridPreviewProps> = ({
             ref={containerRef}
             className="relative shadow-sm overflow-hidden bg-white flex items-center justify-center"
             style={{
+                // CRITICAL FIX: Explicitly set aspect-ratio to match the content.
+                // This ensures the div shrinks to fit the image dimensions exactly within the parent flex container.
+                aspectRatio: settings.cropMode === 'square' 
+                  ? '1 / 1' 
+                  : `${imageInfo.width} / ${imageInfo.height}`,
                 maxWidth: '100%',
                 maxHeight: '100%',
                 cursor: isDragging ? 'grabbing' : 'grab'
@@ -150,7 +155,7 @@ const GridPreview: React.FC<GridPreviewProps> = ({
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
         >
-            {/* PHANTOM DRIVER IMAGE */}
+            {/* PHANTOM DRIVER IMAGE - Still useful for older browsers or flex quirks, but aspectRatio does the heavy lifting now */}
             <img
                 src={settings.cropMode === 'square' ? SQUARE_SVG_DATA : imageInfo.src}
                 alt="layout-driver"
