@@ -43,35 +43,50 @@ export const processAndDownload = async (
     const img = await loadImage(src);
     const zip = new JSZip();
 
+    // 获取设备像素比，用于高分辨率渲染（通常为 1-3，Retina 显示器为 2）
+    // 使用 2 倍分辨率来确保高清晰度输出
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+
     // 1. Determine Viewport Dimensions (The total size of the grid)
     const viewport = getViewportDimensions(img.width, img.height, cropMode);
 
-    // 2. Create a canvas representing the Viewport
+    // 2. Create a high-resolution canvas representing the Viewport
     const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { 
+      willReadFrequently: false,
+      alpha: format === 'png' || format === 'webp' // 保持透明度支持
+    });
     if (!ctx) throw new Error("Could not create canvas context");
 
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
+    // 使用高分辨率：实际尺寸 × 像素比
+    const canvasWidth = viewport.width * pixelRatio;
+    const canvasHeight = viewport.height * pixelRatio;
+    
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
 
-    // 3. Draw the image onto the viewport with transformations
+    // 使用图像平滑算法提升质量
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+
+    // 3. Draw the image onto the viewport with transformations (使用高分辨率坐标)
     // Clear background
-    ctx.clearRect(0, 0, viewport.width, viewport.height);
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
-    // Calculate draw dimensions based on independent scales
-    const drawWidth = img.width * scaleX;
-    const drawHeight = img.height * scaleY;
+    // Calculate draw dimensions based on independent scales (转换为高分辨率)
+    const drawWidth = img.width * scaleX * pixelRatio;
+    const drawHeight = img.height * scaleY * pixelRatio;
 
-    // Calculate centering offsets base
+    // Calculate centering offsets base (转换为高分辨率)
     // In both modes, we initially center the image in the viewport
-    const baseX = (viewport.width - drawWidth) / 2;
-    const baseY = (viewport.height - drawHeight) / 2;
+    const baseX = (canvasWidth - drawWidth) / 2;
+    const baseY = (canvasHeight - drawHeight) / 2;
 
-    // Apply user pan offsets (converted from percentage to pixels)
-    const finalX = baseX + (offsetX * viewport.width);
-    const finalY = baseY + (offsetY * viewport.height);
+    // Apply user pan offsets (converted from percentage to pixels, 转换为高分辨率)
+    const finalX = baseX + (offsetX * canvasWidth);
+    const finalY = baseY + (offsetY * canvasHeight);
 
-    // Draw the processed image to the master canvas
+    // Draw the processed image to the master canvas (使用高分辨率尺寸)
     ctx.drawImage(img, finalX, finalY, drawWidth, drawHeight);
 
     // 4. Slice Generation with Padding
@@ -86,15 +101,21 @@ export const processAndDownload = async (
     let processedCount = 0;
 
     const sliceCanvas = document.createElement('canvas');
-    const sliceCtx = sliceCanvas.getContext('2d');
+    const sliceCtx = sliceCanvas.getContext('2d', {
+      willReadFrequently: false,
+      alpha: format === 'png' || format === 'webp'
+    });
     if (!sliceCtx) throw new Error("Ctx error");
 
-    // Calculate actual output dimensions after padding
-    const outputWidth = Math.max(1, Math.floor(sliceWidth - paddingLeft - paddingRight));
-    const outputHeight = Math.max(1, Math.floor(sliceHeight - paddingTop - paddingBottom));
+    // 计算实际输出尺寸（考虑 padding，转换为高分辨率）
+    const outputWidth = Math.max(1, Math.floor((sliceWidth - paddingLeft - paddingRight) * pixelRatio));
+    const outputHeight = Math.max(1, Math.floor((sliceHeight - paddingTop - paddingBottom) * pixelRatio));
 
+    // 切片 canvas 使用高分辨率
     sliceCanvas.width = outputWidth;
     sliceCanvas.height = outputHeight;
+    sliceCtx.imageSmoothingEnabled = true;
+    sliceCtx.imageSmoothingQuality = 'high';
 
     for (const index of slicesToExport) {
       const row = Math.floor(index / cols);
@@ -102,22 +123,32 @@ export const processAndDownload = async (
 
       sliceCtx.clearRect(0, 0, outputWidth, outputHeight);
 
-      // Calculate source coordinates with padding offset
-      const srcX = col * sliceWidth + paddingLeft;
-      const srcY = row * sliceHeight + paddingTop;
-      const srcWidth = sliceWidth - paddingLeft - paddingRight;
-      const srcHeight = sliceHeight - paddingTop - paddingBottom;
+      // Calculate source coordinates with padding offset (转换为高分辨率坐标)
+      const srcX = (col * sliceWidth + paddingLeft) * pixelRatio;
+      const srcY = (row * sliceHeight + paddingTop) * pixelRatio;
+      const srcWidth = (sliceWidth - paddingLeft - paddingRight) * pixelRatio;
+      const srcHeight = (sliceHeight - paddingTop - paddingBottom) * pixelRatio;
 
-      // Draw from master canvas to slice canvas with padding applied
+      // 从高分辨率主 canvas 绘制到高分辨率切片 canvas
       sliceCtx.drawImage(
         canvas,
-        srcX, srcY, srcWidth, srcHeight,  // Source with padding offset
-        0, 0, outputWidth, outputHeight    // Dest (full canvas)
+        srcX, srcY, srcWidth, srcHeight,  // Source (高分辨率坐标)
+        0, 0, outputWidth, outputHeight    // Dest (高分辨率尺寸)
       );
 
       const blob = await new Promise<Blob | null>((resolve) => {
         const mimeType = format === 'jpg' ? 'image/jpeg' : `image/${format}`;
-        sliceCanvas.toBlob(resolve, mimeType, 0.92);
+        
+        // 根据格式设置质量参数
+        // PNG: 不需要质量参数（无损）
+        // JPEG: 使用 0.98 高质量（0-1，1 为最高质量）
+        // WebP: 使用 0.98 高质量
+        if (format === 'png') {
+          sliceCanvas.toBlob(resolve, mimeType);
+        } else {
+          // JPEG 和 WebP 使用高质量参数
+          sliceCanvas.toBlob(resolve, mimeType, 0.98);
+        }
       });
 
       if (blob) {
