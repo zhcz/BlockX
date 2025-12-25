@@ -78,9 +78,9 @@ const App: React.FC = () => {
   return (
     <>
       {/* Mobile Navbar */}
-      <div className="md:hidden">
+      {/* <div className="md:hidden">
         <Navbar mobile={true} />
-      </div>
+      </div> */}
 
       <div className="min-h-screen w-full bg-apple-gray p-2 md:p-4 pt-20 md:pt-4 flex items-center justify-center font-sans">
         <div className="w-full max-w-7xl flex flex-col md:flex-row gap-3 md:h-[90vh]">
@@ -100,9 +100,9 @@ const App: React.FC = () => {
         )}
 
         {/* Desktop Navbar - integrated in layout */}
-        <div className="hidden md:block">
+        {/* <div className="hidden md:block">
           <Navbar />
-        </div>
+        </div> */}
 
         {/* LEFT PANEL: Preview / Upload */}
         {/* Mobile: fixed height (50vh) or min-height to ensure image shows. Desktop: full height. */}
